@@ -1,10 +1,5 @@
 use std::mem;
 
-// -Tail of a list never allocates extra junk
-// enum is in null-pointer-optimized form
-// All elements are uniformly allocated
-// Split List and Link to hide implementation details
-
 #[derive(Debug)]
 enum Link {
   Empty,
@@ -31,15 +26,12 @@ impl List {
     // { head: Link:More<Foo> }
     // [ Link::More<Foo> ], ( Foo, Link::Empty )
 
-    // Use of `mem::replace()` to:
-    //
+    let next = mem::replace(&mut self.head, Link::Empty);
     // 1. Replace self.head with Link::Empty:
     //    `[ Link::Empty ], ( Foo, Link::Empty )`.
     //
-    // 2. Return the head and store it in a `next` variable:
+    // 2. Return the original head and store it in `next`:
     //    `next == [ Link::More<Foo> ]`.
-    //
-    let next = mem::replace(&mut self.head, Link::Empty);
 
     // ( Bar, Link::More<Foo> ), ( Foo, Link::Empty )
     let new_node = Box::new(Node { elem, next });
@@ -52,26 +44,51 @@ impl List {
   pub fn pop(&mut self) -> Option<i32> {
     // [ Link::More<Bar> ], ( Bar, Link::More<Foo> ), ( Foo, Link::Empty )
 
-    // Use of `mem::replace()` to:
-    //
+    let popped_node = mem::replace(&mut self.head, Link::Empty);
     // 1. Replace self.head with Link::Empty:
     //    `[ Link::Empty ], ( Bar, Link::More<Foo> ), ( Foo, Link::Empty )`.
     //
-    // 2. Return the head and store it in a `next` variable:
+    // 2. Return the original head and store it in `popped_node`:
     //    `popped_node == [ Link::More<Bar> ]`.
-    //
-    let popped_node = mem::replace(&mut self.head, Link::Empty);
 
     match popped_node {
       Link::Empty => None, // List was empty, do nothing
       Link::More(node) => {
+        self.head = node.next;
         // Node `Bar` popped:
         // Set head pointing to next node of second node —Foo—; second node dropped —Bar—:
         // [ Link::More<Foo> ], ( Foo, Link::Empty )
-        self.head = node.next;
-        // Return popped node
         Some(node.elem)
+        // Return popped node
       }
+    }
+  }
+}
+
+impl Drop for List {
+  fn drop(&mut self) {
+    // `self == List { head: More(Node { elem: 3, next: More(Node { elem: 2, next: More(Node { elem: 1, next: Empty }) }) }) }`
+
+    let mut current_link = mem::replace(&mut self.head, Link::Empty);
+    // 1. Replace self.head with Link::Empty:
+    //    `self.head == Empty`.
+    //
+    // 2. Return the original head and store it in a `next` variable:
+    //    `current_link == More(Node { elem: 3, next: More(Node { elem: 2, next: More(Node { elem: 1, next: Empty }) }) })`.
+    //
+
+    // While extract the `Node` from `current_link`:
+    while let Link::More(mut boxed_node) = current_link {
+      // `boxed_node == Node { elem: 3, next: More(Node { elem: 2, next: More(Node { elem: 1, next: Empty }) }) }`
+
+      current_link = mem::replace(&mut boxed_node.next, Link::Empty);
+      // 1. Replace boxed_node.next with Link::Empty:
+      //    `boxed_node == Node { elem: 3, next: Empty }`
+      //
+      // 2. Return original `boxed_node.next` and store it in `current_link` to iterate over it:
+      //    `current_link == More(Node { elem: 2, next: More(Node { elem: 1, next: Empty }) })`.
+
+      // Iterate…
     }
   }
 }
