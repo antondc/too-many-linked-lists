@@ -23,43 +23,53 @@ impl List {
   }
 
   pub fn push(&mut self, elem: i32) {
-    // { head: Link:More<Foo> }
-    // [ Link::More<Foo> ], ( Foo, Link::Empty )
+    // We start with a list that contains a value of `1` and we want to push a value of `2`:
+    // `self == `List { head: More(Node { elem: 1, next: Empty }) }`
+    // `elem == 2`
 
-    let next = mem::replace(&mut self.head, Link::Empty);
+    let original_next = mem::replace(&mut self.head, Link::Empty);
     // 1. Replace self.head with Link::Empty:
-    //    `[ Link::Empty ], ( Foo, Link::Empty )`.
+    //    `self.head == Empty`.
     //
-    // 2. Return the original head and store it in `next`:
-    //    `next == [ Link::More<Foo> ]`.
+    // 2. Return the original head and store it in `original_next`:
+    //    `original_next == More(Node { elem: 1, next: Empty })`.
 
-    // ( Bar, Link::More<Foo> ), ( Foo, Link::Empty )
-    let new_node = Box::new(Node { elem, next });
+    let new_node = Box::new(Node {
+      elem,
+      next: original_next,
+    });
+    // `new_node == Node { elem: 2, next: More(Node { elem: 1, next: Empty }) }`
 
-    // [ Link::More<Bar> ], ( Bar, Link::More<Foo> ),   ( Foo, Link::Empty )
     self.head = Link::More(new_node);
+    // `self.head == More(Node { elem: 2, next: More(Node { elem: 1, next: Empty }) })`
   }
 
   // We empty head first returning it with `mem::replace`, and match against returned unallocated head
   pub fn pop(&mut self) -> Option<i32> {
-    // [ Link::More<Bar> ], ( Bar, Link::More<Foo> ), ( Foo, Link::Empty )
+    // `self == List { head: More(Node { elem: 2, next: More(Node { elem: 1, next: Empty }) }) }`
 
-    let popped_node = mem::replace(&mut self.head, Link::Empty);
+    let original_head = mem::replace(&mut self.head, Link::Empty);
     // 1. Replace self.head with Link::Empty:
-    //    `[ Link::Empty ], ( Bar, Link::More<Foo> ), ( Foo, Link::Empty )`.
+    //    `self.head == Empty`.
     //
-    // 2. Return the original head and store it in `popped_node`:
-    //    `popped_node == [ Link::More<Bar> ]`.
+    // 2. Return the original head and store it in `original_head`:
+    //    `original_head == More(Node { elem: 2, next: More(Node { elem: 1, next: Empty }) })`.
 
-    match popped_node {
+    // At this point `self.head == Empty`, we will set it in following match:
+    match original_head {
       Link::Empty => None, // List was empty, do nothing
       Link::More(node) => {
+        // `node` was the first node in the list
+        // `node == Node { elem: 2, next: More(Node { elem: 1, next: Empty }) }`
         self.head = node.next;
-        // Node `Bar` popped:
-        // Set head pointing to next node of second node —Foo—; second node dropped —Bar—:
-        // [ Link::More<Foo> ], ( Foo, Link::Empty )
+        // Set `node.next` as new head of the list
+        // `self == List { head: More(Node { elem: 1, next: Empty }) }`
+        // `self.head == More(Node { elem: 1, next: Empty })`
+        // `node.next was moved and dropped`
+
         Some(node.elem)
-        // Return popped node
+        // Return value of `node.elem`, which was value of previous head
+        // node.elem == 2
       }
     }
   }
