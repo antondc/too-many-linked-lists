@@ -75,3 +75,34 @@ impl List {
     }
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  #[test]
+
+  fn basics() {
+    let mut list = List::new();
+
+    // Test that newly created list pop nothing
+    assert_eq!(list.pop(), None);
+
+    // Test that list push items, as well as pop them
+    list.push(1);
+    list.push(2);
+    list.push(3);
+    assert_eq!(list.pop(), Some(3));
+    assert_eq!(list.pop(), Some(2));
+    assert_eq!(list.pop(), Some(1));
+    assert_eq!(list.pop(), None);
+
+    // Test that list still behaves even after push/pop actions
+    assert_eq!(list.pop(), None);
+    list.push(123);
+    list.push(43);
+    assert_eq!(list.pop(), Some(43));
+    assert_eq!(list.pop(), Some(123));
+    assert_eq!(list.pop(), None);
+  }
+}
