@@ -1,23 +1,12 @@
-pub struct IntoIter<T>(List<T>);
-
-impl<T> Iterator for IntoIter<T> {
-  type Item = T;
-  fn next(&mut self) -> Option<Self::Item> {
-    self.0.pop()
-  }
+pub struct List<T> {
+  head: Link<T>,
 }
 
 type Link<T> = Option<Box<Node<T>>>;
 
-#[derive(Debug)]
 struct Node<T> {
   elem: T,
   next: Link<T>,
-}
-
-#[derive(Debug)]
-pub struct List<T> {
-  head: Link<T>,
 }
 
 impl<T> List<T> {
@@ -26,20 +15,15 @@ impl<T> List<T> {
   }
 
   pub fn push(&mut self, elem: T) {
-    // Replaced `mem::replace(&mut self.head, None)` with take()
-    let original_head = self.head.take();
-
     let new_node = Box::new(Node {
-      elem,
-      next: original_head,
+      elem: elem,
+      next: self.head.take(),
     });
 
     self.head = Some(new_node);
   }
 
   pub fn pop(&mut self) -> Option<T> {
-    // Replaced `mem::replace(&mut self.head, None)` with take()
-    // Use .map instead of match
     self.head.take().map(|node| {
       self.head = node.next;
       node.elem
@@ -57,45 +41,98 @@ impl<T> List<T> {
   pub fn into_iter(self) -> IntoIter<T> {
     IntoIter(self)
   }
+
+  pub fn iter(&self) -> Iter<'_, T> {
+    Iter {
+      next: self.head.as_deref(),
+    }
+  }
+
+  pub fn iter_mut(&mut self) -> IterMut<T> {
+    IterMut {
+      next: self.head.as_deref_mut(),
+    }
+  }
 }
 
 impl<T> Drop for List<T> {
   fn drop(&mut self) {
-    let mut current_link = self.head.take();
-
-    while let Some(mut boxed_node) = current_link {
-      current_link = boxed_node.next.take();
+    let mut cur_link = self.head.take();
+    while let Some(mut boxed_node) = cur_link {
+      cur_link = boxed_node.next.take();
     }
+  }
+}
+
+pub struct IntoIter<T>(List<T>);
+
+impl<T> Iterator for IntoIter<T> {
+  type Item = T;
+  fn next(&mut self) -> Option<Self::Item> {
+    // access fields of a tuple struct numerically
+    self.0.pop()
+  }
+}
+
+pub struct Iter<'a, T> {
+  next: Option<&'a Node<T>>,
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+  type Item = &'a T;
+  fn next(&mut self) -> Option<Self::Item> {
+    self.next.map(|node| {
+      self.next = node.next.as_deref();
+      &node.elem
+    })
+  }
+}
+
+pub struct IterMut<'a, T> {
+  next: Option<&'a mut Node<T>>,
+}
+
+impl<'a, T> Iterator for IterMut<'a, T> {
+  type Item = &'a mut T;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    self.next.take().map(|node| {
+      self.next = node.next.as_deref_mut();
+      &mut node.elem
+    })
   }
 }
 
 #[cfg(test)]
 mod test {
-  use super::*;
+  use super::List;
 
   #[test]
-
   fn basics() {
     let mut list = List::new();
 
-    // Test that newly created list pop nothing
+    // Check empty list behaves right
     assert_eq!(list.pop(), None);
 
-    // Test that list push items, as well as pop them
+    // Populate list
     list.push(1);
     list.push(2);
     list.push(3);
+
+    // Check normal removal
     assert_eq!(list.pop(), Some(3));
     assert_eq!(list.pop(), Some(2));
-    assert_eq!(list.pop(), Some(1));
-    assert_eq!(list.pop(), None);
 
-    // Test that list still behaves even after push/pop actions
-    assert_eq!(list.pop(), None);
-    list.push(123);
-    list.push(43);
-    assert_eq!(list.pop(), Some(43));
-    assert_eq!(list.pop(), Some(123));
+    // Push some more just to make sure nothing's corrupted
+    list.push(4);
+    list.push(5);
+
+    // Check normal removal
+    assert_eq!(list.pop(), Some(5));
+    assert_eq!(list.pop(), Some(4));
+
+    // Check exhaustion
+    assert_eq!(list.pop(), Some(1));
     assert_eq!(list.pop(), None);
   }
 
@@ -129,5 +166,31 @@ mod test {
     assert_eq!(iter.next(), Some(2));
     assert_eq!(iter.next(), Some(1));
     assert_eq!(iter.next(), None);
+  }
+
+  #[test]
+  fn iter() {
+    let mut list = List::new();
+    list.push(1);
+    list.push(2);
+    list.push(3);
+
+    let mut iter = list.iter();
+    assert_eq!(iter.next(), Some(&3));
+    assert_eq!(iter.next(), Some(&2));
+    assert_eq!(iter.next(), Some(&1));
+  }
+
+  #[test]
+  fn iter_mut() {
+    let mut list = List::new();
+    list.push(1);
+    list.push(2);
+    list.push(3);
+
+    let mut iter = list.iter_mut();
+    assert_eq!(iter.next(), Some(&mut 3));
+    assert_eq!(iter.next(), Some(&mut 2));
+    assert_eq!(iter.next(), Some(&mut 1));
   }
 }
