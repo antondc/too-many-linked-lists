@@ -1,20 +1,22 @@
+type Link<T> = Option<Box<Node<T>>>;
+
 #[derive(Debug)]
-struct Node {
-  elem: i32,
-  next: Option<Box<Node>>,
+struct Node<T> {
+  elem: T,
+  next: Link<T>,
 }
 
 #[derive(Debug)]
-pub struct List {
-  head: Option<Box<Node>>,
+pub struct List<T> {
+  head: Link<T>,
 }
 
-impl List {
+impl<T> List<T> {
   pub fn new() -> Self {
     List { head: None }
   }
 
-  pub fn push(&mut self, elem: i32) {
+  pub fn push(&mut self, elem: T) {
     // Replaced `mem::replace(&mut self.head, None)` with take()
     let original_head = self.head.take();
 
@@ -26,7 +28,7 @@ impl List {
     self.head = Some(new_node);
   }
 
-  pub fn pop(&mut self) -> Option<i32> {
+  pub fn pop(&mut self) -> Option<T> {
     // Replaced `mem::replace(&mut self.head, None)` with take()
     // Use .map instead of match
     self.head.take().map(|node| {
@@ -36,7 +38,7 @@ impl List {
   }
 }
 
-impl Drop for List {
+impl<T> Drop for List<T> {
   fn drop(&mut self) {
     let mut current_link = self.head.take();
 
